@@ -79,8 +79,8 @@ build_binary() {
     # The default cached proof ELF is sufficient; never trigger a proof rebuild
     # or update a checked-in artifact for this startup-only replay.
     env -u AGGLAYER_ELF_BUILD CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-0}" \
-        cargo build --locked --release --bin agglayer
-    cp "$CARGO_TARGET_DIR/release/agglayer" "$replay_dir/$label/agglayer"
+        cargo build --locked -p agglayer --bin agglayer
+    cp "$CARGO_TARGET_DIR/debug/agglayer" "$replay_dir/$label/agglayer"
 }
 
 cp "$replay_dir/node.rs.base" "$NODE_FILE"
@@ -150,7 +150,7 @@ run_case() {
     printf '%s\n' "$log"
 }
 
-base_log="$(run_case base)"
+run_case base
 head_log="$(run_case head)"
 
 base_messages="$replay_dir/base/case/messages.txt"
