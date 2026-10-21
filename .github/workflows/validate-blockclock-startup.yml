@@ -1,0 +1,61 @@
+name: Validate BlockClock startup log
+
+on:
+  push:
+    branches:
+      - validate/blockclock-startup-log
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: Replay base and candidate startup logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE_SHA: 9f8e6c4eb82b782c63954e087908c7a2ba45e226
+      HEAD_SHA: 2a1d187f391cf16b4c6b3d0e2435ed59a16332f0
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_TARGET_DIR: /home/runner/work/agglayer-startup-target
+
+    steps:
+      - name: Checkout validation revision
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Preserve replay harness
+        run: |
+          git show "${GITHUB_SHA}:validation/startup-log-replay.sh" > "$RUNNER_TEMP/startup-log-replay.sh"
+          chmod +x "$RUNNER_TEMP/startup-log-replay.sh"
+
+      - name: Checkout exact candidate source
+        run: git checkout --detach "$HEAD_SHA"
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc
+        uses: taiki-e/install-action@v2
+        with:
+          tool: protoc
+
+      - name: Install native build prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang cmake libssl-dev pkg-config
+
+      - name: Replay base and candidate startup logs
+        run: REPLAY_ARTIFACT_DIR="$RUNNER_TEMP/replay-artifacts" "$RUNNER_TEMP/startup-log-replay.sh"
+
+      - name: Upload replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockclock-startup-replay
+          path: ${{ runner.temp }}/replay-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
